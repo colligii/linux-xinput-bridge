@@ -1,0 +1,1 @@
+go build -o xbox-driver xbox.go

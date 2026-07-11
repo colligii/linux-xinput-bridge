@@ -1,0 +1,19 @@
+{
+  "name": "gamesir-g7-controllers",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "buildGoLib": "cd lib_go && ./buildGo.sh && cd ..",
+    "givePermission": "sudo ./givePermission.sh",
+    "start": "node src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "linux-joystick": "^1.0.2"
+  }
+}

@@ -1,0 +1,45 @@
+{
+    "btnMapping": {
+        "305": "A",
+        "307": "Y",
+        "306": "B",
+        "304": "X",
+        "316": "HOME",
+        "312": "BACK",
+        "313": "START",
+        "308": "LB",
+        "309": "RB",
+        "310": "LT",
+        "311": "RT",
+        "16": "DPAD_X",
+        "17": "DPAD_Y",
+        "1;3": "JOYSTICK_X",
+        "0;3": "JOYSTICK_Y",
+        "5;3": "JOYSTICK_Z_X",
+        "2;3": "JOYSTICK_Z_Y"
+    },
+    "composedKeys": {
+        "1;3": true,
+        "0;3": true,
+        "5;3": true,
+        "2;3": true
+    },
+    "joystickGroup": [
+        ["dpad", [
+            "16",
+            "17"
+        ]],
+        ["left", [
+            "1;3",
+            "0;3"
+        ]],
+        ["right", [
+            "5;3",
+            "2;3"
+        ]]
+    ],
+    "joystickDecodeAlgo": [
+        ["left", "../../config/gamesir-g7-joystick.js", { "x": "JOYSTICK_X", "y": "JOYSTICK_Y" } ],
+        ["right", "../../config/gamesir-g7-joystick.js", { "x": "JOYSTICK_Z_X", "y": "JOYSTICK_Z_Y" } ]
+    ]
+}
