@@ -1,4 +1,6 @@
-const fs = require('fs');
+const { spawn } = require('child_process');
+const path = require('path');
+const fs = require('fs')
 
 class Controller {
     constructor(DEVICE, config) {
@@ -7,6 +9,16 @@ class Controller {
         this.btnMapping = config?.btnMapping;
         this.groups = config?.joystickGroup ?? [];
         this.composedKeys = config?.composedKeys;
+        this.customButtonValues = (config?.customButtonValues ?? [])
+            .reduce((oldV, [key, path]) => {
+                return {
+                    ...oldV,
+                    [key]: require(path)
+                }
+            }, {})
+
+
+            // console.log(this.customButtonValues)
 
         this.codeToGroup = {};
         this.group = {};
@@ -52,11 +64,22 @@ class Controller {
 
     }
 
+    getMappedValueByCode(code, value) {
+        if(this.customButtonValues?.[code])
+            return this.customButtonValues?.[code](value);
+
+        return value;
+    }
+
     startControllerStream(DEVICE) {
 
-        const stream = fs.createReadStream(DEVICE);
+        const child = spawn(
+            path.join(process.cwd(), "lib_go", "controller-reader")
+        );
 
+        fs.writeFileSync(path.join(process.cwd(), 'kill_controller.sh'), `kill -9 ${child.pid}`, 'utf-8');
 
+        const stream = child.stdout;
 
         stream.on('data', (buffer) => {
             for (let offset = 0; offset < buffer.length; offset += 24) {
@@ -86,7 +109,7 @@ class Controller {
                     const isCodeToGroup = !!groupCode;
                     let _controllersButtons = JSON.parse(JSON.stringify(this.controllerButtons));
                     if(isCodeToGroup) {
-                        this.group[groupCode][code] = value;
+                        this.group[groupCode][code] = this.getMappedValueByCode(code, value);
 
                         if(this.joystickDecodeAlgo?.[groupCode]?.[0]) {
                             const x_key = this.joystickDecodeAlgo[groupCode][1].x;
@@ -107,7 +130,7 @@ class Controller {
 
                         // biggestValue = biggestValue < value ? value : biggestValue;
                     } else {
-                        _controllersButtons[code] = _value;
+                        _controllersButtons[code] = this.getMappedValueByCode(code, _value);
                     }
 
                     if(JSON.stringify(_controllersButtons) !== JSON.stringify(this.controllerButtons)) {

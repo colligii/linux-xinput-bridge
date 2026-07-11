@@ -10,7 +10,7 @@ class BridgeController {
                 stdio: ['pipe', 'inherit', 'inherit']
             });
 
-            fs.writeFileSync(path.join(process.cwd(), 'logs.txt'), ("Go driver PID:"+ this.goProcess.pid), 'utf-8')
+            fs.writeFileSync(path.join(process.cwd(), 'kill.sh'), `kill -9 ${this.goProcess.pid}\nkill -9 ${process.pid}\n./kill_controller.sh`, 'utf-8')
     
             this.goProcess.on('error', (err) => {
                 reject('Falha ao iniciar o driver em Go:', err);
@@ -22,8 +22,7 @@ class BridgeController {
             });
 
             process.on('SIGINT', () => {
-                this.goProcess.kill();
-                process.exit();
+                spawn('bash', [path.join(process.cwd(), 'kill.sh')])
             });
             
             resolve("Conectado ao driver nativo em Go!");

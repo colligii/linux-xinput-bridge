@@ -1,4 +1,4 @@
 {
     "controller": "gamesir-g7",
-    "evtest": "/dev/input/event16"
+    "evtest": "/dev/input/event21"
 }

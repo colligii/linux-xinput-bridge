@@ -1,16 +1,59 @@
 package main
 
+/*
+#include <linux/input.h>
+#include <linux/uinput.h>
+#include <string.h>
+#include <stdlib.h>
+
+enum {
+    GO_EV_SYN = EV_SYN,
+    GO_EV_KEY = EV_KEY,
+    GO_EV_ABS = EV_ABS,
+
+    GO_BTN_SOUTH = BTN_SOUTH,
+    GO_BTN_EAST  = BTN_EAST,
+    GO_BTN_NORTH = BTN_NORTH,
+    GO_BTN_WEST  = BTN_WEST,
+    GO_BTN_TL    = BTN_TL,
+    GO_BTN_TR    = BTN_TR,
+    GO_BTN_SELECT= BTN_SELECT,
+    GO_BTN_START = BTN_START,
+    GO_BTN_MODE  = BTN_MODE,
+
+    GO_ABS_X = ABS_X,
+    GO_ABS_Y = ABS_Y,
+    GO_ABS_Z = ABS_Z,
+    GO_ABS_RX = ABS_RX,
+    GO_ABS_RY = ABS_RY,
+    GO_ABS_RZ = ABS_RZ,
+    GO_ABS_HAT0X = ABS_HAT0X,
+    GO_ABS_HAT0Y = ABS_HAT0Y,
+	GO_BTN_THUMBL = BTN_THUMBL,
+    GO_BTN_THUMBR = BTN_THUMBR,
+
+    // PARAMOS AS CONSTANTES ANTIGAS AQUI E ADICIONAMOS AS DE CORREÇÃO DO WIDGET:
+    GO_UI_SET_EVBIT   = UI_SET_EVBIT,
+    GO_UI_SET_KEYBIT  = UI_SET_KEYBIT,
+    GO_UI_SET_ABSBIT  = UI_SET_ABSBIT,
+    GO_UI_ABS_SETUP   = UI_ABS_SETUP,
+    GO_UI_DEV_SETUP   = UI_DEV_SETUP,
+    GO_UI_DEV_CREATE  = UI_DEV_CREATE,
+    GO_UI_DEV_DESTROY = UI_DEV_DESTROY,
+};
+*/
+import "C"
+
 import (
 	"bufio"
-	"bytes"
-	"encoding/binary"
 	"encoding/json"
 	"os"
 	"syscall"
+	"unsafe"
 )
 
 // ==========================================
-// 1. STRUCTS DE MAPEAMENTO JSON (NODE -> GO)
+// 1. STRUCTS DE MAPEAMENTO JSON
 // ==========================================
 
 type AxisLeft struct {
@@ -43,70 +86,53 @@ type XboxPacket struct {
 	Dpad  DpadState `json:"dpad"`
 	Left  AxisLeft  `json:"left"`
 	Right AxisRight `json:"right"`
-}
-
-// ==========================================
-// 2. STRUCTS E CONSTANTES NATIVAS DO UINPUT
-// ==========================================
-
-type inputID struct {
-	Bustype uint16
-	Vendor  uint16
-	Product uint16
-	Version uint16
-}
-
-type uinputUserDev struct {
-	Name       [80]byte
-	ID         inputID
-	EffectsMax uint32
-	AbsMax     [64]int32
-	AbsMin     [64]int32
-	AbsFuzz    [64]int32
-	AbsFlat    [64]int32
-}
-
-type inputEvent struct {
-	Time  syscall.Timeval
-	Type  uint16
-	Code  uint16
-	Value int32
+	L3 int32 `json:"L3"`
+    R3 int32 `json:"R3"`
 }
 
 const (
-	// Códigos IOCTL corrigidos e calculados para Linux x86_64 / ARM64
-	uiSetEvBit  = 0x40045564 // UI_SET_EVBIT
-	uiSetKeyBit = 0x40045565 // UI_SET_KEYBIT
-	uiSetAbsBit = 0x40045566 // UI_SET_ABSBIT
-	uiDevCreate = 0x5501     // UI_DEV_CREATE
+	evSyn = uint16(C.GO_EV_SYN)
+	evKey = uint16(C.GO_EV_KEY)
+	evAbs = uint16(C.GO_EV_ABS)
 
-	evSyn = 0x00
-	evKey = 0x01
-	evAbs = 0x03
+	btnA = uint16(C.GO_BTN_SOUTH)
+	btnB = uint16(C.GO_BTN_EAST)
+	btnX = uint16(C.GO_BTN_NORTH)
+	btnY = uint16(C.GO_BTN_WEST)
 
-	// IDs oficiais de botões do Linux (input-event-codes.h)
-	btnA     = 304
-	btnB     = 305
-	btnX     = 307
-	btnY     = 308
-	btnLB    = 310
-	btnRB    = 311
-	btnBack  = 314
-	btnStart = 315
-	btnHome  = 316
+	btnLB = uint16(C.GO_BTN_TL)
+	btnRB = uint16(C.GO_BTN_TR)
 
-	// IDs oficiais de eixos do Linux
-	axisLX    = 0x00 // ABS_X
-	axisLY    = 0x01 // ABS_Y
-	axisRX    = 0x03 // ABS_RX
-	axisRY    = 0x04 // ABS_RY
-	axisLT    = 0x02 // ABS_Z (Gatilho Esquerdo)
-	axisRT    = 0x05 // ABS_RZ (Gatilho Direito)
-	axisDpadX = 16   // ABS_HAT0X
-	axisDpadY = 17   // ABS_HAT0Y
+	btnBack  = uint16(C.GO_BTN_SELECT)
+	btnStart = uint16(C.GO_BTN_START)
+	btnHome  = uint16(C.GO_BTN_MODE)
+
+	axisLX = uint16(C.GO_ABS_X)
+	axisLY = uint16(C.GO_ABS_Y)
+	axisLT = uint16(C.GO_ABS_Z)
+
+	axisRX = uint16(C.GO_ABS_RX)
+	axisRY = uint16(C.GO_ABS_RY)
+	axisRT = uint16(C.GO_ABS_RZ)
+
+	axisDpadX = uint16(C.GO_ABS_HAT0X)
+	axisDpadY = uint16(C.GO_ABS_HAT0Y)
+
+	btnL3    = uint16(C.GO_BTN_THUMBL)
+    btnR3    = uint16(C.GO_BTN_THUMBR)
 )
 
-// Ponteiro global para o descritor do uinput
+var (
+	uiSetEvBit  = uintptr(C.GO_UI_SET_EVBIT)
+	uiSetKeyBit = uintptr(C.GO_UI_SET_KEYBIT)
+	uiSetAbsBit = uintptr(C.GO_UI_SET_ABSBIT)
+
+	uiAbsSetup   = uintptr(C.GO_UI_ABS_SETUP)
+	uiDevSetup   = uintptr(C.GO_UI_DEV_SETUP)
+	uiDevCreate  = uintptr(C.GO_UI_DEV_CREATE)
+	uiDevDestroy = uintptr(C.GO_UI_DEV_DESTROY)
+)
+
 var uinputFd *os.File
 
 // ==========================================
@@ -121,68 +147,132 @@ func ioctl(fd uintptr, request uintptr, arg uintptr) error {
 	return nil
 }
 
+func applyDeadzone(value int32, threshold int32) int32 {
+	if value > -threshold && value < threshold {
+		return 0
+	}
+	return value
+}
+
 func initController() bool {
+	
 	var err error
+	// Executar como root (sudo) é obrigatório para acessar o /dev/uinput
 	uinputFd, err = os.OpenFile("/dev/uinput", os.O_WRONLY|syscall.O_NONBLOCK, 0660)
 	if err != nil {
-		println("Erro ao abrir /dev/uinput:", err.Error())
+		println("Erro ao abrir /dev/uinput (Tente rodar como sudo):", err.Error())
 		return false
 	}
 	fd := uinputFd.Fd()
 
-	// Configura os tipos de eventos suportados pelo dispositivo
+	// 1. Habilita tipos globais
 	ioctl(fd, uiSetEvBit, uintptr(evKey))
 	ioctl(fd, uiSetEvBit, uintptr(evAbs))
 
-	// Habilita os botões na tabela de capacidades do Kernel
-	botoes := []uintptr{btnA, btnB, btnX, btnY, btnLB, btnRB, btnBack, btnStart, btnHome}
+		// Habilita sincronização
+	ioctl(fd, uiSetEvBit, uintptr(C.EV_SYN))
+
+	// Habilita gamepad padrão Xbox
+	ioctl(fd, uiSetKeyBit, uintptr(C.BTN_MODE))
+
+	// 2. Habilita botões digitais
+	// 2. Habilita o código de cada botão digital individualmente
+	// Mudamos o tipo do slice para uint16
+	botoes := []uint16{btnA, btnB, btnX, btnY, btnLB, btnRB, btnBack, btnStart, btnHome, btnL3, btnR3}
 	for _, btn := range botoes {
-		ioctl(fd, uiSetKeyBit, btn)
+		// Fazemos o cast para uintptr aqui na chamada do ioctl
+		ioctl(fd, uiSetKeyBit, uintptr(btn))
 	}
 
-	// Habilita os eixos absolutos e direcionais
-	eixos := []uintptr{axisLX, axisLY, axisRX, axisRY, axisLT, axisRT, axisDpadX, axisDpadY}
-	for _, eix := range eixos {
-		ioctl(fd, uiSetAbsBit, eix)
-	}
+	// 3. Habilita os códigos dos eixos analógicos
+	eixosPrincipais := []uint16{axisLX, axisLY, axisRX, axisRY}
+	gatilhos := []uint16{axisLT, axisRT}
+	dpads := []uint16{axisDpadX, axisDpadY}
 
-	// Monta os metadados do dispositivo virtual
-	var userDev uinputUserDev
-	copy(userDev.Name[:], "Virtual Xbox 360 Controller")
-	userDev.ID.Bustype = 0x03  // BUS_USB
-	userDev.ID.Vendor = 0x045e  // Microsoft Corporation
-	userDev.ID.Product = 0x028e // Xbox 360 Controller
-
-	// Aplica limites para analógicos principais (-32768 a 32767)
-	eixosPrincipais := []int{axisLX, axisLY, axisRX, axisRY}
 	for _, eix := range eixosPrincipais {
-		userDev.AbsMin[eix] = -32768
-		userDev.AbsMax[eix] = 32767
+		ioctl(fd, uiSetAbsBit, uintptr(eix))
+	}
+	for _, eix := range gatilhos {
+		ioctl(fd, uiSetAbsBit, uintptr(eix))
+	}
+	for _, eix := range dpads {
+		ioctl(fd, uiSetAbsBit, uintptr(eix))
 	}
 
-	// Gatilhos analógicos (0 a 1023)
-	userDev.AbsMin[axisLT] = 0
-	userDev.AbsMax[axisLT] = 1023
-	userDev.AbsMin[axisRT] = 0
-	userDev.AbsMax[axisRT] = 1023
+	// 4. Configura limites dos analógicos principais (-32768 a 32767)
+	for _, eix := range eixosPrincipais {
+		var setup C.struct_uinput_abs_setup
+		setup.code = C.__u16(eix)
+		setup.absinfo.value = 0
+		setup.absinfo.minimum = -32768
+		setup.absinfo.maximum = 32767
+		setup.absinfo.fuzz = 256  // Aumentado de 16 para 256 (filtra ruídos de trepidação)
+		setup.absinfo.flat = 1024 // Aumentado de 128 para 1024 (região central estável)
+		setup.absinfo.resolution = 0
 
-	// Eixos do D-Pad digital mapeado em ABS (-1 a 1)
-	userDev.AbsMin[axisDpadX] = -1
-	userDev.AbsMax[axisDpadX] = 1
-	userDev.AbsMin[axisDpadY] = -1
-	userDev.AbsMax[axisDpadY] = 1
+		if err := ioctl(fd, uiAbsSetup, uintptr(unsafe.Pointer(&setup))); err != nil {
+			println("Erro no UI_ABS_SETUP (Eixo Principal):", err.Error())
+		}
+	}
 
-	// Escreve as propriedades físicas na pipeline do dispositivo virtual
-	var buf bytes.Buffer
-	binary.Write(&buf, binary.LittleEndian, userDev)
-	_, err = uinputFd.Write(buf.Bytes())
+	// 5. Configura limites dos gatilhos LT/RT (0 a 255 comumente no driver do Xbox)
+	for _, eix := range gatilhos {
+		var setup C.struct_uinput_abs_setup
+		setup.code = C.__u16(eix)
+		setup.absinfo.value = 0
+		setup.absinfo.minimum = 0
+		setup.absinfo.maximum = 255 // Mude para 32767 se sua entrada for mapeada em alta resolução
+		setup.absinfo.fuzz = 0
+		setup.absinfo.flat = 0
+		setup.absinfo.resolution = 0
+
+		if err := ioctl(fd, uiAbsSetup, uintptr(unsafe.Pointer(&setup))); err != nil {
+			println("Erro no UI_ABS_SETUP (Gatilho):", err.Error())
+		}
+	}
+
+	// 6. Configura limites do D-pad (-1, 0, 1)
+	for _, eix := range dpads {
+		var setup C.struct_uinput_abs_setup
+		setup.code = C.__u16(eix)
+		setup.absinfo.value = 0
+		setup.absinfo.minimum = -1
+		setup.absinfo.maximum = 1
+		setup.absinfo.fuzz = 0
+		setup.absinfo.flat = 0
+		setup.absinfo.resolution = 0
+
+		if err := ioctl(fd, uiAbsSetup, uintptr(unsafe.Pointer(&setup))); err != nil {
+			println("Erro no UI_ABS_SETUP (Dpad):", err.Error())
+		}
+	}
+
+	// 7. Configura metadados do dispositivo virtual
+	var setup C.struct_uinput_setup
+
+	deviceName := C.CString("Microsoft X-Box 360 pad")
+	defer C.free(unsafe.Pointer(deviceName))
+
+	C.strncpy(
+		&setup.name[0],
+		deviceName,
+		C.size_t(C.UINPUT_MAX_NAME_SIZE-1),
+	)
+
+	// Identidade de um Xbox 360 Controller USB real
+	setup.id.bustype = C.BUS_USB
+	setup.id.vendor = 0x045e  // Microsoft
+	setup.id.product = 0x028e // Xbox 360 Controller
+	setup.id.version = 0x0114
+
+	err = ioctl(fd, uiDevSetup, uintptr(unsafe.Pointer(&setup)))
 	if err != nil {
-		println("Erro ao escrever uinput_user_dev:", err.Error())
+		println("Erro no UI_DEV_SETUP:", err.Error())
 		uinputFd.Close()
 		return false
 	}
 
-	// Cria o dispositivo mapeado no sistema operacional (/dev/input/eventX)
+	// 8. Cria o dispositivo no Kernel do Linux
 	err = ioctl(fd, uiDevCreate, 0)
 	if err != nil {
 		println("Erro ao rodar UI_DEV_CREATE:", err.Error())
@@ -197,28 +287,37 @@ func writeEvent(typ uint16, code uint16, value int32) {
 	if uinputFd == nil {
 		return
 	}
+	var ev C.struct_input_event
+	// Deixamos ev.time zerado (o Kernel do Linux preenche automaticamente ao receber)
+	ev._type = C.__u16(typ)
+	ev.code = C.__u16(code)
+	ev.value = C.__s32(value)
 
-	var ev inputEvent
-	ev.Type = typ
-	ev.Code = code
-	ev.Value = value
-
-	var buf bytes.Buffer
-	binary.Write(&buf, binary.LittleEndian, ev)
-	_, _ = uinputFd.Write(buf.Bytes())
+	// Linha errada 'buf.Bytes()' removida. Escrevemos a struct diretamente no fd.
+	data := C.GoBytes(unsafe.Pointer(&ev), C.int(C.sizeof_struct_input_event))
+	_, _ = uinputFd.Write(data)
 }
 
 // ==========================================
-// 4. FUNÇÃO PRINCIPAL (LOOP DE ENTRADA STDIN)
+// 4. FUNÇÃO PRINCIPAL
 // ==========================================
 
 func main() {
 	if !initController() {
-		println("Erro ao iniciar o controle uinput. Certifique-se de usar SUDO.")
+		println("Erro ao iniciar o controle uinput. Certifique-se de usar sudo.")
 		os.Exit(1)
 	}
-	writeEvent(evSyn, 0, 0)
+	
+	// Limpa o estado inicial destruindo instâncias antigas pendentes se necessário
+	defer func() {
+		if uinputFd != nil {
+			_ = ioctl(uinputFd.Fd(), uiDevDestroy, 0)
+			uinputFd.Close()
+		}
+	}()
 
+	writeEvent(evSyn, 0, 0)
+	println("Aguardando JSON perfeito via Stdin...")
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
@@ -233,9 +332,7 @@ func main() {
 			continue
 		}
 
-		println("Go leu -> A:", p.A, "LX:", p.Left.X, "LY:", p.Left.Y, "RX:", p.Right.X)
-
-		// Escreve os estados de botões
+		// Envia botões digitais (0 ou 1)
 		writeEvent(evKey, btnA, p.A)
 		writeEvent(evKey, btnB, p.B)
 		writeEvent(evKey, btnX, p.X)
@@ -246,20 +343,27 @@ func main() {
 		writeEvent(evKey, btnBack, p.Back)
 		writeEvent(evKey, btnHome, p.Home)
 
-		analogLT := p.LT * 32767
-		analogRT := p.RT * 32767
+		// 2. Filtra a sensibilidade central (uma zona morta de 2000 a 3000 costuma ser o ideal)
+		const deadzone = 2500
 
-		// Escreve os analógicos e gatilhos
-		writeEvent(evAbs, axisLX, p.Left.X)
-		writeEvent(evAbs, axisLY, p.Left.Y)
-		writeEvent(evAbs, axisRX, p.Right.X)
-		writeEvent(evAbs, axisRY, p.Right.Y)
-		writeEvent(evAbs, axisLT, analogLT)
-		writeEvent(evAbs, axisRT, analogRT)
+		posX := applyDeadzone(p.Left.X, deadzone)
+		posY := applyDeadzone(p.Left.Y, deadzone)
+		posRX := applyDeadzone(p.Right.X, deadzone)
+		posRY := applyDeadzone(p.Right.Y, deadzone)
+
+		// Envia analógicos
+		writeEvent(evAbs, axisLX, posX)
+		writeEvent(evAbs, axisLY, posY)
+		writeEvent(evAbs, axisRX, posRX)
+		writeEvent(evAbs, axisRY, posRY)
+		writeEvent(evAbs, axisLT, p.LT)
+		writeEvent(evAbs, axisRT, p.RT)
 		writeEvent(evAbs, axisDpadX, p.Dpad.X)
 		writeEvent(evAbs, axisDpadY, p.Dpad.Y)
+		writeEvent(evKey, btnL3, p.L3)
+		writeEvent(evKey, btnR3, p.R3)
 
-		// Despacha todos os inputs pendentes ao kernel em um único tick síncrono
+		// Sincroniza o frame de inputs completo
 		writeEvent(evSyn, 0, 0)
 	}
 }

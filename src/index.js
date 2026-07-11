@@ -43,7 +43,7 @@ async function main() {
     await bridgeController.initialize();
 
     controller.setCb((json) => {
-        console.log(json)
+        // console.log(json)
         bridgeController.sendEvent.bind(bridgeController)((json))
     })
 
