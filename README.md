@@ -1,8 +1,15 @@
 # Linux XInput Bridge
 
-A Linux controller bridge that connects physical gamepads with virtual controllers using the Linux input subsystem.
+An alternative driver and mapping solution for controllers on Linux.
+
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+If you are unable to use `xboxdrv`, or if `xpad` lacks full support for your controller, this project provides a reliable alternative.
+
+`Linux XInput Bridge` is a controller bridge that connects physical gamepads to virtual controllers using the Linux input subsystem (`evdev`/`uinput`). It features a customizable mapping engine, allowing you to intercept, modify, and transform input data exactly how you need.
 
 The project is designed to improve controller compatibility on Linux by reading raw controller events, processing them, and exposing them through a virtual gamepad interface.
+
 
 ## Overview
 
