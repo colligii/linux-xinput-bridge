@@ -1,7 +1,7 @@
 let biggestValue = 65535;
 let middle = 32767;
 let start = 0;
-let deadzone = 2000;
+let deadzone = 5000;
 
 function translateValues(x, y) {
     if((x > middle && x < biggestValue) && (y > start && y < middle)) {

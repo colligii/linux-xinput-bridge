@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "addControllerUdev": "sudo ./add_controller_udev.sh",
     "buildGoLib": "cd lib_go && ./buildGo.sh && cd ..",
     "givePermission": "sudo ./givePermission.sh",
     "start": "node src/index.js",

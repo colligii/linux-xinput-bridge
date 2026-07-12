@@ -47,6 +47,8 @@ async function main() {
         bridgeController.sendEvent.bind(bridgeController)((json))
     })
 
+    console.log('Controller has been successfuly created, consider run (npm run addControllerUdev) in another tab, this will require root access')
+        
 }
 
 main()
