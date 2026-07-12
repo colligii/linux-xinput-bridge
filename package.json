@@ -8,13 +8,12 @@
     "buildGoLib": "cd lib_go && ./buildGo.sh && cd ..",
     "givePermission": "sudo ./givePermission.sh",
     "start": "node src/index.js",
+    "addUserPermission": "./add_user_permission.sh",
+    "configure": "npm install && sudo chmod +x ./configure.sh && ./configure.sh",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
-  "dependencies": {
-    "linux-joystick": "^1.0.2"
-  }
+  "type": "commonjs"
 }

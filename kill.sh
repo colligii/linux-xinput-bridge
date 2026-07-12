@@ -1,3 +1,3 @@
-kill -9 39618
-kill -9 39607
+kill -9 45089
+kill -9 45078
 ./kill_controller.sh
